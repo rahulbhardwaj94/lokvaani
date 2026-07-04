@@ -137,13 +137,22 @@ private struct FlowingWave: View {
                         endPoint: CGPoint(x: size.width, y: 0)
                     )
 
-                    // Glow pass: wide blurred stroke beneath the filament.
+                    // Soft halo just behind the filament — present, not neon.
+                    let haloGradient = GraphicsContext.Shading.linearGradient(
+                        Gradient(colors: [
+                            .blue.opacity(layer.opacity * 0.25),
+                            .cyan.opacity(layer.opacity * 0.35),
+                            .blue.opacity(layer.opacity * 0.25),
+                        ]),
+                        startPoint: .zero,
+                        endPoint: CGPoint(x: size.width, y: 0)
+                    )
                     var glow = canvas
-                    glow.addFilter(.blur(radius: 4))
+                    glow.addFilter(.blur(radius: 2.5))
                     glow.stroke(
                         path,
-                        with: gradient,
-                        style: StrokeStyle(lineWidth: 6, lineCap: .round, lineJoin: .round)
+                        with: haloGradient,
+                        style: StrokeStyle(lineWidth: 3.5, lineCap: .round, lineJoin: .round)
                     )
                     // Core filament.
                     canvas.stroke(
