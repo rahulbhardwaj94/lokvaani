@@ -15,6 +15,9 @@ struct SettingsView: View {
                         .foregroundStyle(.secondary)
                 }
                 KeyboardShortcuts.Recorder("Toggle dictation:", name: .toggleDictation)
+                Text("Double-tap Right ⌥ to lock hands-free (or hold ≥1.5 s and release); tap once to stop. Esc discards a recording in progress.")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
             }
 
             Section("Speech to text") {

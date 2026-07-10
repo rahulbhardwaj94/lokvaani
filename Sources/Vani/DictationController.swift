@@ -13,11 +13,19 @@ final class DictationController {
     /// Discard blips shorter than this (accidental key taps).
     private let minimumSamples = Int(AudioRecorder.targetSampleRate * 0.3)
 
-    /// Holding the PTT key at least this long, then releasing, locks into
-    /// hands-free mode: recording continues until a single tap of the key.
-    private let handsFreeHoldThreshold: TimeInterval = 3.0
+    /// Fallback: holding the PTT key at least this long, then releasing,
+    /// locks into hands-free mode (double-tap is the primary way in).
+    private let handsFreeHoldThreshold: TimeInterval = 1.5
+    /// A press shorter than this is a "tap"; two taps within the window lock
+    /// hands-free. 0.35 s tracks the feel of the system double-click time.
+    private let tapMaxDuration: TimeInterval = 0.35
+    private let doubleTapWindow: TimeInterval = 0.35
     private var pttDownAt: Date?
     private var suppressNextKeyUp = false
+    /// Set between the first tap's release and the double-tap deadline; the
+    /// recording started by that tap keeps running so a completed double-tap
+    /// loses no audio. If no second tap lands, the recording is discarded.
+    private var awaitingSecondTap: Task<Void, Never>?
 
     /// The live-preview re-decode loop; runs only while recording.
     private var previewTask: Task<Void, Never>?
@@ -47,6 +55,10 @@ final class DictationController {
 
         hotkeys.onPushToTalkDown = { [weak self] in self?.pushToTalkDown() }
         hotkeys.onPushToTalkUp = { [weak self] in self?.pushToTalkUp() }
+        hotkeys.onEscape = { [weak self] in
+            // Esc = never mind: discard the in-progress dictation entirely.
+            self?.cancelRecording()
+        }
         hotkeys.onToggle = { [weak self] in
             guard let self else { return }
             AppState.shared.status == .recording ? finishRecording() : beginRecording()
@@ -64,6 +76,16 @@ final class DictationController {
             finishRecording()
             return
         }
+        if awaitingSecondTap != nil {
+            // Second tap inside the window: lock hands-free. The recording
+            // from the first tap never stopped, so nothing is lost.
+            awaitingSecondTap?.cancel()
+            awaitingSecondTap = nil
+            suppressNextKeyUp = true
+            AppState.shared.isHandsFree = true
+            NSSound(named: "Tink")?.play()
+            return
+        }
         pttDownAt = Date()
         beginRecording()
     }
@@ -74,14 +96,47 @@ final class DictationController {
             return
         }
         guard AppState.shared.status == .recording else { return }
-        if let downAt = pttDownAt, Date().timeIntervalSince(downAt) >= handsFreeHoldThreshold {
-            // Held long enough: release doesn't stop — lock into hands-free
-            // so long dictations don't require pinning the key down.
+        guard let downAt = pttDownAt else { return finishRecording() }
+        let held = Date().timeIntervalSince(downAt)
+
+        if held >= handsFreeHoldThreshold {
+            // Fallback: held long enough that release locks into hands-free.
             AppState.shared.isHandsFree = true
             NSSound(named: "Tink")?.play()
             return
         }
+        if held < tapMaxDuration {
+            // A tap, not a hold: keep recording and wait for a second tap.
+            // None arrives → it was a stray tap; drop the recording outright
+            // (transcribing ~1 s of key-click audio invites hallucinations).
+            let window = doubleTapWindow
+            awaitingSecondTap = Task { [weak self] in
+                try? await Task.sleep(for: .seconds(window))
+                guard !Task.isCancelled, let self else { return }
+                self.awaitingSecondTap = nil
+                self.cancelRecording()
+            }
+            return
+        }
         finishRecording()
+    }
+
+    /// Discard an in-progress recording: no transcription, no paste, no
+    /// history. Used for stray single taps and Esc.
+    private func cancelRecording() {
+        guard AppState.shared.status == .recording else { return }
+        awaitingSecondTap?.cancel()
+        awaitingSecondTap = nil
+        previewTask?.cancel()
+        previewTask = nil
+        _ = recorder.stop()
+        AppState.shared.status = .idle
+        AppState.shared.previewTranscript = nil
+        AppState.shared.audioLevel = 0
+        AppState.shared.isHandsFree = false
+        pttDownAt = nil
+        DictationHUD.shared.setPreviewing(false)
+        DictationHUD.shared.hide()
     }
 
     private func beginRecording() {
@@ -159,6 +214,8 @@ final class DictationController {
 
     private func finishRecording() {
         guard AppState.shared.status == .recording else { return }
+        awaitingSecondTap?.cancel()
+        awaitingSecondTap = nil
         previewTask?.cancel()
         previewTask = nil
         AppState.shared.status = .transcribing

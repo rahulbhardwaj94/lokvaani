@@ -14,10 +14,14 @@ extension KeyboardShortcuts.Name {
 @MainActor
 final class HotkeyManager {
     nonisolated static let rightOptionKeyCode: Int64 = 61
+    nonisolated static let escapeKeyCode: Int64 = 53
 
     var onPushToTalkDown: (() -> Void)?
     var onPushToTalkUp: (() -> Void)?
     var onToggle: (() -> Void)?
+    /// Esc pressed. Listen-only tap: the target app still receives the Esc;
+    /// the controller only acts on it while a recording is in progress.
+    var onEscape: (() -> Void)?
 
     private var eventTap: CFMachPort?
     private var runLoopSource: CFRunLoopSource?
@@ -36,6 +40,7 @@ final class HotkeyManager {
         guard eventTap == nil else { return }
 
         let mask = CGEventMask(1 << CGEventType.flagsChanged.rawValue)
+            | CGEventMask(1 << CGEventType.keyDown.rawValue) // Esc-to-cancel
         let selfPtr = Unmanaged.passUnretained(self).toOpaque()
 
         guard let tap = CGEvent.tapCreate(
@@ -68,6 +73,12 @@ final class HotkeyManager {
                 if let tap = self?.eventTap {
                     CGEvent.tapEnable(tap: tap, enable: true)
                 }
+            }
+            return
+        }
+        if type == .keyDown {
+            if event.getIntegerValueField(.keyboardEventKeycode) == Self.escapeKeyCode {
+                Task { @MainActor [weak self] in self?.onEscape?() }
             }
             return
         }

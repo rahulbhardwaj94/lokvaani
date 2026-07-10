@@ -49,11 +49,11 @@ Your voice never leaves the machine. Ever.
  📋  Clipboard-safe paste into the focused app (⌘V, clipboard restored)
 ```
 
-A minimal monochrome pill shows voice-reactive bars and a live running transcript while you speak, then fades out the moment the text lands. Hold the key 3 seconds and release to go hands-free — dictate as long as you like, then tap once to stop.
+A minimal monochrome pill shows voice-reactive bars and a live running transcript while you speak, then fades out the moment the text lands. Double-tap the key to go hands-free — dictate as long as you like, then tap once to stop. Esc means never mind.
 
 ## Features
 
-- 🎙 **Push-to-talk, hands-free & toggle** — hold Right Option to talk; hold it 3 s and release to lock hands-free (tap once to stop); or tap a customizable chord (default ⌥⌘D)
+- 🎙 **Push-to-talk, hands-free & toggle** — hold Right Option to talk; double-tap it to lock hands-free for long dictations (tap once to stop, or hold ≥1.5 s and release); Esc discards a recording; or use a customizable chord (default ⌥⌘D)
 - 🔒 **100% offline** — Whisper + LLM both run on-device; works in airplane mode
 - 🌊 **Live waveform HUD** — monochrome, voice-reactive, follows you across displays, never steals focus
 - 👀 **Live preview** — a running transcript appears in the pill as you speak, so you catch mishears before you stop (the pasted text always comes from the final pass)
