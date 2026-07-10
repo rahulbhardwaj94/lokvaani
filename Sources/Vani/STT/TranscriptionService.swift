@@ -70,10 +70,13 @@ actor TranscriptionService {
         // Auto: Whisper detects one language for the whole clip and decodes
         // everything in it, so a mid-utterance switch (English → Hindi) gets
         // force-decoded as the first language (Hindi comes back as garbled
-        // English + a "Bye" hallucination). Split on pauses and handle each
-        // segment in its own language. Cost is conditional: a dictation with
-        // no real pause, or one that's all one language, still decodes in a
-        // single pass — only a genuine code-switch pays for extra decodes.
+        // English + a "Bye" hallucination). Split on pauses (eagerly — a
+        // breath-length 0.3 s gap is enough, since real switches rarely come
+        // with a long pause), detect each segment's language on the *small*
+        // preview model (fast, already loaded), and regroup adjacent
+        // same-language segments so the big model still decodes once per
+        // language run. A dictation with no pause, or all one language,
+        // stays a single big-model pass.
         let segments = Self.speechSegments(in: samples)
         guard segments.count > 1 else {
             return try await decode(samples, language: nil, on: whisperKit)
@@ -82,8 +85,7 @@ actor TranscriptionService {
         var langs: [String] = []
         for seg in segments {
             let slice = Array(samples[seg.start..<seg.end])
-            let lang = (try? await whisperKit.detectLangauge(audioArray: slice).language) ?? "en"
-            langs.append(lang)
+            langs.append(await Self.detectLanguageFast(slice, fallback: whisperKit))
         }
 
         // All one language after all: one whole-clip decode keeps it fast and
@@ -92,16 +94,31 @@ actor TranscriptionService {
             return try await decode(samples, language: langs.first, on: whisperKit)
         }
 
-        // Real code-switch: decode each segment in its detected language.
-        NSLog("Vani: code-switch detected across %d segments: %@",
-              segments.count, langs.joined(separator: ","))
+        // Real code-switch: decode each same-language run in its language.
+        let groups = SpeechSegmenter.groupByLanguage(segments: segments, languages: langs)
+        NSLog("Vani: code-switch — %d segments → %d language runs: %@",
+              segments.count, groups.count, groups.map(\.language).joined(separator: ","))
         var parts: [String] = []
-        for (seg, lang) in zip(segments, langs) {
-            let slice = Array(samples[seg.start..<seg.end])
-            let text = try await decode(slice, language: lang, on: whisperKit)
+        for group in groups {
+            let slice = Array(samples[group.start..<group.end])
+            let text = try await decode(slice, language: group.language, on: whisperKit)
             if !text.isEmpty { parts.append(text) }
         }
         return parts.joined(separator: " ")
+    }
+
+    /// Language ID for one segment, on the small preview model when it's
+    /// ready (an encoder pass there is ~5–10× cheaper than on turbo, and it
+    /// runs on a separate instance). Falls back to the main model, then "en".
+    private static func detectLanguageFast(_ samples: [Float], fallback: WhisperKit) async -> String {
+        if let lang = await preview.detectLanguage(samples) { return lang }
+        return (try? await fallback.detectLangauge(audioArray: samples).language) ?? "en"
+    }
+
+    /// Language ID on this instance's model; nil unless loaded and ready.
+    func detectLanguage(_ samples: [Float]) async -> String? {
+        guard state == .ready, let whisperKit else { return nil }
+        return try? await whisperKit.detectLangauge(audioArray: samples).language
     }
 
     /// One Whisper decode. `language == nil` auto-detects; a code decodes in
@@ -119,7 +136,7 @@ actor TranscriptionService {
     }
 
     /// Split audio into pause-delimited speech segments (sample-index ranges).
-    /// Voice-active regions separated by less than ~0.5 s are merged into one
+    /// Voice-active regions separated by less than ~0.3 s are merged into one
     /// segment; longer silences split. Tiny blips are dropped. Returns a single
     /// segment (or none) when there's no clear pause to split on — the caller
     /// then decodes the whole clip in one pass.
@@ -138,12 +155,19 @@ actor TranscriptionService {
     func transcribePreview(samples: [Float], model: String, language: String) async -> String {
         guard state == .ready, loadedModel == model, let whisperKit else { return "" }
 
+        // temperatureFallbackCount 0 + no timestamps: a preview pass must be
+        // fast and bounded. The retry ladder (re-decoding at rising
+        // temperatures when the model loops on silence-heavy audio) can turn
+        // one pass into 8–12 s, which freezes the preview — for a disposable
+        // partial we'd rather show a flawed line than a stale one.
         let options = DecodingOptions(
             task: .transcribe,
             language: language == "auto" ? nil : language,
             temperature: 0,
+            temperatureFallbackCount: 0,
             usePrefillPrompt: true,
-            detectLanguage: language == "auto"
+            detectLanguage: language == "auto",
+            withoutTimestamps: true
         )
         do {
             let started = Date()

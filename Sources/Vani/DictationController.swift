@@ -123,9 +123,11 @@ final class DictationController {
         let minSamples = Int(AudioRecorder.targetSampleRate * 0.4)
         let firstDelay = Duration.milliseconds(500)
         let cadence = Duration.milliseconds(900)
-        // Decode only the recent window: the small model keeps this fast, and
-        // the final (full-buffer) pass is what actually gets pasted.
-        let windowSamples = Int(AudioRecorder.targetSampleRate * 20)
+        // Decode only the last few seconds: whisper-small does ~7 s in ~0.3 s,
+        // but past ~10 s a pass can spiral to several seconds and the preview
+        // freezes. The pill shows a single tail line anyway, and the final
+        // (full-buffer) pass is what actually gets pasted.
+        let windowSamples = Int(AudioRecorder.targetSampleRate * 7)
 
         previewTask = Task { [weak self] in
             var delay = firstDelay

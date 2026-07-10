@@ -21,7 +21,7 @@ public enum SpeechSegmenter {
         activeChunks: [(start: Int, end: Int)],
         totalSamples: Int,
         sampleRate: Int = 16_000,
-        mergeGapSeconds: Double = 0.5,
+        mergeGapSeconds: Double = 0.3,
         padSeconds: Double = 0.1,
         minSegmentSeconds: Double = 0.2
     ) -> [(start: Int, end: Int)] {
@@ -43,5 +43,26 @@ public enum SpeechSegmenter {
             let end = min(totalSamples, seg.end + pad)
             return end - start >= minLen ? (start: start, end: end) : nil
         }
+    }
+
+    /// Collapse adjacent segments that detected the same language into one
+    /// span (first start → last end, silence between them included). The
+    /// split threshold is deliberately eager so a code-switch with only a
+    /// breath-length pause is caught; this regroups the false splits, so the
+    /// expensive decode runs once per language *run*, not once per pause —
+    /// and each decode keeps cross-pause context for punctuation.
+    public static func groupByLanguage(
+        segments: [(start: Int, end: Int)],
+        languages: [String]
+    ) -> [(start: Int, end: Int, language: String)] {
+        var groups: [(start: Int, end: Int, language: String)] = []
+        for (seg, lang) in zip(segments, languages) {
+            if let last = groups.last, last.language == lang {
+                groups[groups.count - 1].end = seg.end
+            } else {
+                groups.append((start: seg.start, end: seg.end, language: lang))
+            }
+        }
+        return groups
     }
 }
