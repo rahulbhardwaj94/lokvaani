@@ -23,6 +23,15 @@ public enum HinglishNormalizer {
         ("शिप इट नौ", "ship it now"),
         ("इट नौ", "it now"),
         ("राइट नौ", "right now"),
+        // लेट alone is ambiguous (लेटना = to lie down), but followed by a
+        // form of आना ("will come late") it can only mean English "late" —
+        // field example: "वो लेट आएगा".
+        ("लेट आएगा", "late आएगा"),
+        ("लेट आएगी", "late आएगी"),
+        ("लेट आओगे", "late आओगे"),
+        ("लेट हो गया", "late हो गया"),
+        ("लेट हो गई", "late हो गई"),
+        ("लेट हो जाएगा", "late हो जाएगा"),
         ("डू इट नाउ", "do it now"),
         ("थैंक यू", "thank you"),
         ("गुड मॉर्निंग", "good morning"),

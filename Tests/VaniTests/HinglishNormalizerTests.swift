@@ -10,6 +10,11 @@ func hinglishNormalizerTests() {
         norm("शिप इट नौ, क्यूंकि परफेक्ट कभी नहीं होगा"),
         "ship it now, क्यूंकि perfect कभी नहीं होगा"
     )
+
+    // लेट maps only inside unambiguous phrases (field: "वो लेट आएगा");
+    // standalone लेट stays — लेटना means "to lie down".
+    expect(norm("मुझे लगता है वो लेट आएगा"), "मुझे लगता है वो late आएगा")
+    expect(norm("वो बिस्तर पर लेट गया"), "वो बिस्तर पर लेट गया")
     expect(
         norm("शिप इट नौ, क्यूंकि परफेक्ट कभी नहीं होघा"),
         "ship it now, क्यूंकि perfect कभी नहीं होघा"
