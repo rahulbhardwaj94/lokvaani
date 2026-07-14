@@ -41,7 +41,7 @@ const description =
 
 export const metadata: Metadata = {
   // Update when the custom domain (vani.rahulbhardwaj.dev) is wired up.
-  metadataBase: new URL("https://vani-topaz.vercel.app"),
+  metadataBase: new URL("https://the-vani-app.vercel.app"),
   title: "Vani — local dictation for macOS that never rewrites you",
   description,
   openGraph: {

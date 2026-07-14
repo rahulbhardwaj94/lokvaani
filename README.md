@@ -12,7 +12,7 @@ An open-source alternative to Wispr Flow / SuperWhisper, built for Apple Silicon
 [![macOS 14+](https://img.shields.io/badge/macOS-14%2B-000000?logo=apple&logoColor=white)](#requirements)
 [![Apple Silicon](https://img.shields.io/badge/Apple%20Silicon-native-333333?logo=apple&logoColor=white)](#requirements)
 [![License: MIT](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
-[![Website](https://img.shields.io/badge/Website-vani--topaz.vercel.app-D9772D)](https://vani-topaz.vercel.app)
+[![Website](https://img.shields.io/badge/Website-the--vani--app.vercel.app-D9772D)](https://the-vani-app.vercel.app)
 
 ---
 
