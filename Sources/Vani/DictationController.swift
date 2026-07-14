@@ -395,6 +395,13 @@ final class DictationController {
         if codeMode { VaniLog.log("code mode for \(bundleID)") }
 
         var text = TextCleaner.clean(raw, codeMode: codeMode)
+        // Code-switch script repair: Whisper transliterates embedded English
+        // words into Devanagari when a segment decodes as Hindi ("ship it
+        // now" → "शिप इट नौ"). Dictionary-exact restores only — real Hindi
+        // is never touched.
+        if settings.hinglishNormalize {
+            text = HinglishNormalizer.normalize(text)
+        }
         // The 1B cleanup model helps short dictations (fillers, punctuation)
         // but drops sentences and mangles casing beyond a few sentences —
         // Whisper's own punctuation is already good there, so skip it.

@@ -41,6 +41,11 @@ struct SettingsView: View {
                     .font(.caption)
                     .foregroundStyle(.secondary)
 
+                Toggle("Keep English words in English", isOn: $settings.hinglishNormalize)
+                Text("In mixed Hindi/English dictation, restores English words Whisper wrote in Devanagari (शिप इट नौ → ship it now); your Hindi is never touched.")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+
                 if FeatureFlags.streamingPreview {
                     Toggle("Live preview while speaking", isOn: $settings.streamingPreview)
                     Text("Shows a running transcript in the pill as you talk. It's disposable — the pasted text always comes from the final pass — and falls back silently if the model can't keep up.")

@@ -44,6 +44,9 @@ final class SettingsStore: ObservableObject {
     @Published var spokenCommandsEnabled: Bool {
         didSet { UserDefaults.standard.set(spokenCommandsEnabled, forKey: "spokenCommandsEnabled") }
     }
+    @Published var hinglishNormalize: Bool {
+        didSet { UserDefaults.standard.set(hinglishNormalize, forKey: "hinglishNormalize") }
+    }
     @Published var streamingPreview: Bool {
         didSet { UserDefaults.standard.set(streamingPreview, forKey: "streamingPreview") }
     }
@@ -91,6 +94,7 @@ final class SettingsStore: ObservableObject {
         // the LLM stays available as an opt-in.
         llmCleanupEnabled = defaults.object(forKey: "llmCleanupEnabled") as? Bool ?? false
         spokenCommandsEnabled = defaults.object(forKey: "spokenCommandsEnabled") as? Bool ?? true
+        hinglishNormalize = defaults.object(forKey: "hinglishNormalize") as? Bool ?? true
         streamingPreview = defaults.object(forKey: "streamingPreview") as? Bool ?? true
         codeModeEnabled = defaults.object(forKey: "codeModeEnabled") as? Bool ?? true
         whisperModeEnabled = defaults.object(forKey: "whisperModeEnabled") as? Bool ?? false
